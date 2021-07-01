@@ -2,58 +2,57 @@ package xyz.erupt.jpa.service;
 
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.exception.ConstraintViolationException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import xyz.erupt.annotation.sub_erupt.Filter;
 import xyz.erupt.annotation.sub_field.EditType;
 import xyz.erupt.core.constant.EruptConst;
 import xyz.erupt.core.exception.EruptWebApiRuntimeException;
+import xyz.erupt.core.invoke.DataProcessorManager;
 import xyz.erupt.core.query.Column;
-import xyz.erupt.core.query.Condition;
 import xyz.erupt.core.query.EruptQuery;
 import xyz.erupt.core.service.EruptCoreService;
 import xyz.erupt.core.service.IEruptDataService;
 import xyz.erupt.core.util.AnnotationUtil;
-import xyz.erupt.core.util.DataProcessorManager;
 import xyz.erupt.core.util.ReflectUtil;
 import xyz.erupt.core.view.EruptFieldModel;
 import xyz.erupt.core.view.EruptModel;
 import xyz.erupt.core.view.Page;
 import xyz.erupt.jpa.dao.EruptJpaDao;
 import xyz.erupt.jpa.dao.EruptJpaUtils;
+import xyz.erupt.jpa.support.JpaSupport;
 
-import javax.persistence.*;
+import javax.annotation.Resource;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
 import javax.transaction.Transactional;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
- * @author liyuepeng
- * @date 2019-03-06.
+ * @author YuePeng
+ * date 2019-03-06.
  */
 @Service
-public class EruptDataServiceDbImpl implements IEruptDataService, ApplicationRunner {
+public class EruptDataServiceDbImpl implements IEruptDataService {
 
-    @Autowired
+    static {
+        DataProcessorManager.register(EruptConst.DEFAULT_DATA_PROCESSOR, EruptDataServiceDbImpl.class);
+    }
+
+    @Resource
     private EruptJpaDao eruptJpaDao;
 
-    @Autowired
+    @Resource
     private EntityManagerService entityManagerService;
+
+    @Resource
+    private JpaSupport jpaSupport;
 
     @Override
     public Object findDataById(EruptModel eruptModel, Object id) {
-        EntityManager entityManager = entityManagerService.getEntityManager(eruptModel.getClazz());
-        Object obj = entityManager.find(eruptModel.getClazz(), id);
-        if (entityManager.isOpen()) {
-            entityManager.close();
-        }
-        return obj;
+        return entityManagerService.getEntityManager(eruptModel.getClazz(), (em) -> em.find(eruptModel.getClazz(), id));
     }
 
     @Override
@@ -63,10 +62,11 @@ public class EruptDataServiceDbImpl implements IEruptDataService, ApplicationRun
 
     @Transactional
     @Override
-    public void addData(EruptModel eruptModel, Object object) {
+    public void addData(EruptModel eruptModel, Object data) {
         try {
-            jpaManyToOneConvert(eruptModel, object);
-            eruptJpaDao.addEntity(eruptModel.getClazz(), object);
+            this.loadSupport(data);
+            this.jpaManyToOneConvert(eruptModel, data);
+            eruptJpaDao.addEntity(eruptModel.getClazz(), data);
         } catch (Exception e) {
             handlerException(e, eruptModel);
         }
@@ -76,14 +76,22 @@ public class EruptDataServiceDbImpl implements IEruptDataService, ApplicationRun
     @Override
     public void editData(EruptModel eruptModel, Object data) {
         try {
+            this.loadSupport(data);
             eruptJpaDao.editEntity(eruptModel.getClazz(), data);
         } catch (Exception e) {
             handlerException(e, eruptModel);
         }
     }
 
+    private void loadSupport(Object jpaEntity) {
+        for (Field field : jpaEntity.getClass().getDeclaredFields()) {
+            jpaSupport.referencedColumnNameSupport(jpaEntity, field);
+        }
+    }
+
     //优化异常提示类
     private void handlerException(Exception e, EruptModel eruptModel) {
+        e.printStackTrace();
         if (e instanceof DataIntegrityViolationException) {
             if (e.getMessage().contains("ConstraintViolationException")) {
                 throw new EruptWebApiRuntimeException(gcRepeatHint(eruptModel));
@@ -116,11 +124,10 @@ public class EruptDataServiceDbImpl implements IEruptDataService, ApplicationRun
             if (fieldModel.getEruptField().edit().type() == EditType.TAB_TABLE_ADD) {
                 Field field = object.getClass().getDeclaredField(fieldModel.getFieldName());
                 field.setAccessible(true);
-                Collection collection = (Collection) field.get(object);
+                Collection<?> collection = (Collection<?>) field.get(object);
                 if (null != collection) {
                     for (Object o : collection) {
-                        //删除主键ID
-                        //TODO 强制删除id的处理方式并不好
+                        //强制删除主键ID
                         Field pk = ReflectUtil.findClassField(o.getClass(), EruptCoreService
                                 .getErupt(fieldModel.getFieldReturnName()).getErupt().primaryKeyCol());
                         pk.set(o, null);
@@ -155,15 +162,15 @@ public class EruptDataServiceDbImpl implements IEruptDataService, ApplicationRun
      * @param eruptModel eruptModel
      * @param columns    列
      * @param query      查询对象
-     * @return
+     * @return 数据结果集
      */
     @Override
     public Collection<Map<String, Object>> queryColumn(EruptModel eruptModel, List<Column> columns, EruptQuery query) {
         StringBuilder hql = new StringBuilder();
         List<String> columnStrList = new ArrayList<>();
-        for (Column column : columns) {
-            columnStrList.add(EruptJpaUtils.completeHqlPath(eruptModel.getEruptName(), column.getName()) + " as " + column.getAlias());
-        }
+        columns.forEach(column ->
+                columnStrList.add(EruptJpaUtils.completeHqlPath(eruptModel.getEruptName()
+                        , column.getName()) + " as " + column.getAlias()));
         hql.append("select new map(").append(String.join(", ", columnStrList))
                 .append(") from ").append(eruptModel.getEruptName()).append(" as ").append(eruptModel.getEruptName());
         ReflectUtil.findClassAllFields(eruptModel.getClazz(), field -> {
@@ -174,34 +181,17 @@ public class EruptDataServiceDbImpl implements IEruptDataService, ApplicationRun
         });
         hql.append(" where 1 = 1 ");
         if (null != query.getConditions()) {
-            for (Condition condition : query.getConditions()) {
-                hql.append(EruptJpaUtils.AND).append(condition.getKey()).append('=').append(condition.getValue());
-            }
+            query.getConditions().forEach(it -> hql.append(EruptJpaUtils.AND).append(it.getKey()).append('=').append(it.getValue()));
         }
         if (null != query.getConditionStrings()) {
-            for (String condition : query.getConditionStrings()) {
-                hql.append(EruptJpaUtils.AND).append(condition);
-            }
+            query.getConditionStrings().forEach(it -> hql.append(EruptJpaUtils.AND).append(it));
         }
-        for (Filter filter : eruptModel.getErupt().filter()) {
-            String filterStr = AnnotationUtil.switchFilterConditionToStr(filter);
-            if (StringUtils.isNotBlank(filterStr)) {
-                hql.append(EruptJpaUtils.AND).append(filterStr);
-            }
-        }
+        Arrays.stream(eruptModel.getErupt().filter()).map(AnnotationUtil::switchFilterConditionToStr)
+                .filter(StringUtils::isNotBlank).forEach(it -> hql.append(EruptJpaUtils.AND).append(it));
         if (StringUtils.isNotBlank(query.getOrderBy())) {
             hql.append(" order by ").append(query.getOrderBy());
         }
-        EntityManager entityManager = entityManagerService.getEntityManager(eruptModel.getClazz());
-        List list = entityManager.createQuery(hql.toString()).getResultList();
-        if (entityManager.isOpen()) {
-            entityManager.close();
-        }
-        return list;
+        return entityManagerService.getEntityManager(eruptModel.getClazz(), (em) -> em.createQuery(hql.toString()).getResultList());
     }
 
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        DataProcessorManager.register(EruptConst.DEFAULT_DATA_PROCESSOR, EruptDataServiceDbImpl.class);
-    }
 }

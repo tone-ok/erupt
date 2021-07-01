@@ -20,8 +20,8 @@ import javax.persistence.*;
 import java.util.Date;
 
 /**
- * @author liyuepeng
- * @date 2020-05-26
+ * @author YuePeng
+ * date 2020-05-26
  */
 @Entity
 @Table(name = "e_upms_operate_log")
@@ -84,7 +84,7 @@ public class EruptOperateLog extends BaseModel {
             views = @View(title = "请求耗时", template = "value && value+'ms'"),
             edit = @Edit(title = "请求耗时", search = @Search(vague = true))
     )
-    private Long totalTime;
+    private Integer totalTime;
 
     @EruptField(
             views = @View(title = "记录时间"),

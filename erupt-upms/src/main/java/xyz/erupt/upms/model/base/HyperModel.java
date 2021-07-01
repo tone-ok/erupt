@@ -1,5 +1,6 @@
 package xyz.erupt.upms.model.base;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 import xyz.erupt.annotation.PreDataProxy;
@@ -13,8 +14,8 @@ import javax.persistence.MappedSuperclass;
 import java.util.Date;
 
 /**
- * @author liyuepeng
- * @date 2018-10-11.
+ * @author YuePeng
+ * date 2018-10-11.
  */
 @Getter
 @Setter
@@ -28,10 +29,12 @@ public class HyperModel extends BaseModel {
     @SkipSerialize
     private Date updateTime;
 
+    @JsonIgnore
     @SkipSerialize
     @ManyToOne(fetch = FetchType.LAZY)
     private EruptUser createUser;
 
+    @JsonIgnore
     @SkipSerialize
     @ManyToOne(fetch = FetchType.LAZY)
     private EruptUser updateUser;

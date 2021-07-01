@@ -2,11 +2,10 @@ package xyz.erupt.core.controller;
 
 import com.google.gson.Gson;
 import lombok.Cleanup;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.util.StreamUtils;
@@ -20,6 +19,8 @@ import xyz.erupt.core.annotation.EruptRouter;
 import xyz.erupt.core.config.EruptProp;
 import xyz.erupt.core.constant.EruptRestPath;
 import xyz.erupt.core.exception.EruptNoLegalPowerException;
+import xyz.erupt.core.exception.EruptWebApiRuntimeException;
+import xyz.erupt.core.invoke.PowerInvoke;
 import xyz.erupt.core.service.EruptCoreService;
 import xyz.erupt.core.util.DateUtil;
 import xyz.erupt.core.util.EruptUtil;
@@ -37,17 +38,18 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Stream;
 
 /**
- * @author liyuepeng
- * @date 10/15/18.
+ * @author YuePeng
+ * date 10/15/18.
  */
 @RestController
 @RequestMapping(EruptRestPath.ERUPT_FILE)
+@RequiredArgsConstructor
 public class EruptFileController {
 
-    @Autowired
-    private EruptProp eruptProp;
+    private final EruptProp eruptProp;
 
     private static final String FS_SEP = "/";
 
@@ -59,9 +61,8 @@ public class EruptFileController {
         }
         try {
             //生成存储路径
-
             EruptModel eruptModel = EruptCoreService.getErupt(eruptName);
-            PowerObject powerObject = EruptUtil.getPowerObject(eruptModel);
+            PowerObject powerObject = PowerInvoke.getPowerObject(eruptModel);
             if (!powerObject.isEdit() && !powerObject.isAdd()) {
                 throw new EruptNoLegalPowerException();
             }
@@ -69,7 +70,6 @@ public class EruptFileController {
             String path;
             if (eruptProp.isKeepUploadFileName()) {
                 path = File.separator + DateUtil.getFormatDate(new Date(), DateUtil.DATE) + File.separator +
-                        RandomUtils.nextInt(100, 999) + "-" +
                         file.getOriginalFilename()
                                 .replace("&", "")
                                 .replace("?", "")
@@ -88,7 +88,8 @@ public class EruptFileController {
                     if (attachmentType.fileTypes().length > 0) {
                         String[] fileNameArr = file.getOriginalFilename().split("\\.");
                         String extensionName = fileNameArr[fileNameArr.length - 1];
-                        if (!Arrays.asList(attachmentType.fileTypes()).contains(extensionName)) {
+                        if (Stream.of(attachmentType.fileTypes()).noneMatch(type ->
+                                fileNameArr[fileNameArr.length - 1].equalsIgnoreCase(type))) {
                             return EruptApiModel.errorApi("上传失败，文件格式不允许为：" + extensionName);
                         }
                     }
@@ -187,6 +188,7 @@ public class EruptFileController {
             map.put("uploaded", true);
         } else {
             map.put("uploaded", false);
+            throw new EruptWebApiRuntimeException(eruptApiModel.getMessage());
         }
         return map;
     }

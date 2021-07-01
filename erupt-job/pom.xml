@@ -10,11 +10,16 @@
     <parent>
         <groupId>xyz.erupt</groupId>
         <artifactId>erupt</artifactId>
-        <version>1.6.4</version>
+        <version>1.7.2</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>xyz.erupt</groupId>
             <artifactId>erupt-upms</artifactId>

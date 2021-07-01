@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @author liyuepeng
- * @date 10/10/18.
+ * @author YuePeng
+ * date 10/10/18.
  */
 public interface IEruptDataService {
 
@@ -20,15 +20,10 @@ public interface IEruptDataService {
     Object findDataById(EruptModel eruptModel, @Comment("主键值") Object id);
 
     @Comment("查询分页数据")
-    Page queryList(EruptModel eruptModel,
-                   @Comment("分页对象") Page page,
-                   @Comment("条件") EruptQuery eruptQuery);
-
+    Page queryList(EruptModel eruptModel, @Comment("分页对象") Page page, @Comment("条件") EruptQuery eruptQuery);
 
     @Comment("根据列查询相关数据")
-    Collection<Map<String, Object>> queryColumn(EruptModel eruptModel,
-                                                @Comment("列信息") List<Column> columns,
-                                                @Comment("条件") EruptQuery eruptQuery);
+    Collection<Map<String, Object>> queryColumn(EruptModel eruptModel, @Comment("列信息") List<Column> columns, @Comment("条件") EruptQuery eruptQuery);
 
     @Comment("添加数据")
     void addData(EruptModel eruptModel, @Comment("数据对象") Object object);

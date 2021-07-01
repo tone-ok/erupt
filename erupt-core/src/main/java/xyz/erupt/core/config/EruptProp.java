@@ -1,26 +1,24 @@
 package xyz.erupt.core.config;
 
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
-import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 /**
- * @author liyuepeng
- * @date 2019-10-31.
+ * @author YuePeng
+ * date 2019-10-31.
  */
-@Data
+@Getter
+@Setter
 @Component
 @ConfigurationProperties(prefix = "erupt")
 public class EruptProp {
 
-    @Deprecated
     //热构建erupt,开启此功能后每次请求都会重新构建erupt，该功能方便启动时修改erupt代码
+    @Deprecated
     private boolean hotBuild = false;
 
     //附件存储根路径
@@ -35,15 +33,12 @@ public class EruptProp {
     //是否保留上传文件原始名称
     private boolean keepUploadFileName = false;
 
-    private List<DB> dbs;
+    @Deprecated
+    private String[] jacksonHttpMessageConvertersPackages;
 
-    @Getter
-    @Setter
-    public static class DB {
+    private String[] gsonHttpMessageConvertersPackages;
 
-        private DataSourceProperties datasource;
+    private List<EruptPropDb> dbs;
 
-        private JpaProperties jpa;
 
-    }
 }

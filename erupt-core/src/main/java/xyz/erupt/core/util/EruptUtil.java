@@ -6,17 +6,21 @@ import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import xyz.erupt.annotation.EruptField;
-import xyz.erupt.annotation.PreDataProxy;
 import xyz.erupt.annotation.config.QueryExpression;
 import xyz.erupt.annotation.constant.AnnotationConst;
-import xyz.erupt.annotation.fun.*;
-import xyz.erupt.annotation.sub_erupt.Power;
+import xyz.erupt.annotation.fun.AttachmentProxy;
+import xyz.erupt.annotation.fun.ChoiceFetchHandler;
+import xyz.erupt.annotation.fun.VLModel;
 import xyz.erupt.annotation.sub_field.Edit;
 import xyz.erupt.annotation.sub_field.EditType;
 import xyz.erupt.annotation.sub_field.EditTypeSearch;
 import xyz.erupt.annotation.sub_field.View;
-import xyz.erupt.annotation.sub_field.sub_edit.*;
+import xyz.erupt.annotation.sub_field.sub_edit.ChoiceType;
+import xyz.erupt.annotation.sub_field.sub_edit.ReferenceTableType;
+import xyz.erupt.annotation.sub_field.sub_edit.ReferenceTreeType;
+import xyz.erupt.annotation.sub_field.sub_edit.TagsType;
 import xyz.erupt.core.annotation.EruptAttachmentUpload;
+import xyz.erupt.core.exception.EruptApiErrorTip;
 import xyz.erupt.core.query.Condition;
 import xyz.erupt.core.service.EruptApplication;
 import xyz.erupt.core.service.EruptCoreService;
@@ -26,12 +30,13 @@ import xyz.erupt.core.view.EruptModel;
 
 import java.lang.reflect.Field;
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
- * @author liyuepeng
- * @date 11/1/18.
+ * @author YuePeng
+ * date 11/1/18.
  */
 public class EruptUtil {
 
@@ -126,28 +131,17 @@ public class EruptUtil {
     }
 
     public static List<VLModel> getChoiceList(ChoiceType choiceType) {
-        List<VLModel> vls = new ArrayList<>();
-        for (VL vl : choiceType.vl()) {
-            vls.add(new VLModel(vl.value(), vl.label(), vl.desc()));
-        }
-        for (Class<? extends ChoiceFetchHandler> clazz : choiceType.fetchHandler()) {
-            if (!clazz.isInterface()) {
-                List<VLModel> VL = EruptSpringUtil.getBean(clazz).fetch(choiceType.fetchHandlerParams());
-                if (null != VL) {
-                    vls.addAll(VL);
-                }
-            }
-        }
+        List<VLModel> vls = Stream.of(choiceType.vl()).map(vl -> new VLModel(vl.value(), vl.label(), vl.desc(), vl.disable())).collect(Collectors.toList());
+        Stream.of(choiceType.fetchHandler()).filter(clazz -> !clazz.isInterface()).forEach(clazz -> {
+            Optional.ofNullable(EruptSpringUtil.getBean(clazz).fetch(choiceType.fetchHandlerParams())).ifPresent(vls::addAll);
+        });
         return vls;
     }
 
     public static List<String> getTagList(TagsType tagsType) {
         List<String> tags = new ArrayList<>(Arrays.asList(tagsType.tags()));
-        for (Class<? extends TagsFetchHandler> clazz : tagsType.fetchHandler()) {
-            if (!clazz.isInterface()) {
-                tags.addAll(EruptSpringUtil.getBean(clazz).fetchTags(tagsType.fetchHandlerParams()));
-            }
-        }
+        Stream.of(tagsType.fetchHandler()).filter(clazz -> !clazz.isInterface())
+                .forEach(clazz -> tags.addAll(EruptSpringUtil.getBean(clazz).fetchTags(tagsType.fetchHandlerParams())));
         return tags;
     }
 
@@ -185,6 +179,7 @@ public class EruptUtil {
 
     //生成一个合法的searchCondition
     public static List<Condition> geneEruptSearchCondition(EruptModel eruptModel, List<Condition> searchCondition) {
+        checkEruptSearchNotnull(eruptModel, searchCondition);
         List<Condition> legalConditions = new ArrayList<>();
         if (null != searchCondition) {
             for (Condition condition : searchCondition) {
@@ -214,12 +209,33 @@ public class EruptUtil {
         return legalConditions;
     }
 
+    public static void checkEruptSearchNotnull(EruptModel eruptModel, List<Condition> searchCondition) {
+        Map<String, Condition> conditionMap = new HashMap<>();
+        if (null != searchCondition) {
+            searchCondition.forEach(condition -> conditionMap.put(condition.getKey(), condition));
+        }
+        for (EruptFieldModel fieldModel : eruptModel.getEruptFieldModels()) {
+            Edit edit = fieldModel.getEruptField().edit();
+            if (edit.search().value() && edit.search().notNull()) {
+                Condition condition = conditionMap.get(fieldModel.getFieldName());
+                if (null == condition || null == condition.getValue()) {
+                    throw new EruptApiErrorTip(EruptApiModel.Status.INFO, edit.title() + "必填", EruptApiModel.PromptWay.MESSAGE);
+                }
+                if (condition.getValue() instanceof List) {
+                    if (((List<?>) condition.getValue()).size() == 0) {
+                        throw new EruptApiErrorTip(EruptApiModel.Status.INFO + edit.title() + "必填", EruptApiModel.PromptWay.MESSAGE);
+                    }
+                }
+            }
+        }
+    }
+
     public static EruptApiModel validateEruptValue(EruptModel eruptModel, JsonObject jsonObject) {
         for (EruptFieldModel field : eruptModel.getEruptFieldModels()) {
             Edit edit = field.getEruptField().edit();
             JsonElement value = jsonObject.get(field.getFieldName());
             if (field.getEruptField().edit().notNull()) {
-                if (null == value) {
+                if (null == value || value.isJsonNull()) {
                     return EruptApiModel.errorNoInterceptMessage(field.getEruptField().edit().title() + "必填");
                 } else if (String.class.getSimpleName().equals(field.getFieldReturnName())) {
                     if (StringUtils.isBlank(value.getAsString())) {
@@ -265,29 +281,6 @@ public class EruptUtil {
             }
         }
         return EruptApiModel.successApi();
-    }
-
-    //处理dataProxy回调对象
-    public static void handlerDataProxy(EruptModel eruptModel, Consumer<DataProxy> consumer) {
-        for (Class<?> clazz : ReflectUtil.findClassExtendStack(eruptModel.getClazz())) {
-            PreDataProxy preDataProxy = clazz.getAnnotation(PreDataProxy.class);
-            if (null != preDataProxy) {
-                consumer.accept(EruptSpringUtil.getBean(preDataProxy.value()));
-            }
-        }
-        for (Class<? extends DataProxy<?>> proxy : eruptModel.getErupt().dataProxy()) {
-            consumer.accept(EruptSpringUtil.getBean(proxy));
-        }
-    }
-
-    //动态获取erupt power值
-    public static PowerObject getPowerObject(EruptModel eruptModel) {
-        Power power = eruptModel.getErupt().power();
-        PowerObject powerBean = new PowerObject(power);
-        if (!power.powerHandler().isInterface()) {
-            EruptSpringUtil.getBean(power.powerHandler()).handler(powerBean);
-        }
-        return powerBean;
     }
 
     public static Object toEruptId(EruptModel eruptModel, String id) {

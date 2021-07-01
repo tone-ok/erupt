@@ -7,8 +7,9 @@ import xyz.erupt.annotation.sub_erupt.RowOperation;
 import xyz.erupt.annotation.sub_erupt.Tpl;
 import xyz.erupt.core.annotation.EruptRouter;
 import xyz.erupt.core.exception.EruptNoLegalPowerException;
+import xyz.erupt.core.invoke.DataProcessorManager;
+import xyz.erupt.core.invoke.ExprInvoke;
 import xyz.erupt.core.service.EruptCoreService;
-import xyz.erupt.core.util.AnnotationUtil;
 import xyz.erupt.core.util.EruptSpringUtil;
 import xyz.erupt.core.util.EruptUtil;
 import xyz.erupt.core.view.EruptModel;
@@ -21,18 +22,19 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static xyz.erupt.core.constant.EruptRestPath.ERUPT_API;
 
 /**
  * Erupt 页面结构构建信息
  *
- * @author liyuepeng
- * @date 2018-09-28.
+ * @author YuePeng
+ * date 2018-09-28.
  */
 @RestController
 @RequestMapping(ERUPT_API + EruptTplController.TPL)
@@ -80,24 +82,18 @@ public class EruptTplController {
                                 @RequestParam(value = "ids", required = false) String[] ids,
                                 HttpServletResponse response) {
         EruptModel eruptModel = EruptCoreService.getErupt(eruptName);
-        for (RowOperation operation : eruptModel.getErupt().rowOperation()) {
-            if (operation.code().equals(code)) {
-                if (!AnnotationUtil.getExprBool(operation.show())) {
-                    throw new EruptNoLegalPowerException();
-                }
-                if (operation.tpl().engine() == Tpl.Engine.Native || operation.mode() == RowOperation.Mode.BUTTON) {
-                    eruptTplService.tplRender(operation.tpl(), null, response);
-                } else {
-                    List<Object> list = new ArrayList<>();
-                    for (String id : ids) {
-                        Object obj = AnnotationUtil.getEruptDataProcessor(eruptModel.getClazz()).findDataById(eruptModel, EruptUtil.toEruptId(eruptModel, id));
-                        list.add(obj);
-                    }
-                    Map<String, Object> map = new HashMap<>();
-                    map.put(EngineConst.INJECT_ROWS, list);
-                    eruptTplService.tplRender(operation.tpl(), map, response);
-                }
-            }
+        RowOperation operation = Arrays.stream(eruptModel.getErupt().rowOperation())
+                .filter(it -> it.code().equals(code)).findFirst().orElseThrow(EruptNoLegalPowerException::new);
+        if (!ExprInvoke.getExpr(operation.show())) {
+            throw new EruptNoLegalPowerException();
+        }
+        if (operation.tpl().engine() == Tpl.Engine.Native || operation.mode() == RowOperation.Mode.BUTTON) {
+            eruptTplService.tplRender(operation.tpl(), null, response);
+        } else {
+            Map<String, Object> map = new HashMap<>();
+            map.put(EngineConst.INJECT_ROWS, Stream.of(ids).map(id -> DataProcessorManager.getEruptDataProcessor(eruptModel.getClazz())
+                    .findDataById(eruptModel, EruptUtil.toEruptId(eruptModel, id))).collect(Collectors.toList()));
+            eruptTplService.tplRender(operation.tpl(), map, response);
         }
     }
 }

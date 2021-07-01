@@ -1,55 +1,57 @@
 package xyz.erupt.upms.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import xyz.erupt.core.util.ProjectUtil;
 import xyz.erupt.jpa.dao.EruptDao;
-import xyz.erupt.upms.constant.MenuTypeEnum;
+import xyz.erupt.upms.enums.MenuStatus;
+import xyz.erupt.upms.enums.MenuTypeEnum;
 import xyz.erupt.upms.model.*;
 import xyz.erupt.upms.model.log.EruptLoginLog;
 import xyz.erupt.upms.model.log.EruptOperateLog;
 import xyz.erupt.upms.util.MD5Utils;
 
+import javax.annotation.Resource;
 import javax.transaction.Transactional;
 import java.util.Date;
 
 /**
- * @author liyuepeng
- * @date 2019-07-15.
+ * @author YuePeng
+ * date 2019-07-15.
  */
 @Service
 @Order
 @Slf4j
 public class UpmsDataLoadService implements CommandLineRunner {
 
-    @Autowired
+    @Resource
     private EruptDao eruptDao;
 
     public static final String DEFAULT_ACCOUNT = "erupt";
 
     @Transactional
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
         new ProjectUtil().projectStartLoaded("upms", first -> {
             if (first) {
                 //用户
-                EruptUser eruptUser = new EruptUser();
-                eruptUser.setIsAdmin(true);
-                eruptUser.setIsMd5(true);
-                eruptUser.setStatus(true);
-                eruptUser.setCreateTime(new Date());
-                eruptUser.setAccount(DEFAULT_ACCOUNT);
-                eruptUser.setPassword(MD5Utils.digest(DEFAULT_ACCOUNT));
-                eruptUser.setName(DEFAULT_ACCOUNT);
-                eruptDao.persistIfNotExist(EruptUser.class, eruptUser, "account", eruptUser.getAccount());
-
+                if (eruptDao.queryEntityList(EruptUser.class, "isAdmin = true").size() <= 0) {
+                    EruptUser eruptUser = new EruptUser();
+                    eruptUser.setIsAdmin(true);
+                    eruptUser.setIsMd5(true);
+                    eruptUser.setStatus(true);
+                    eruptUser.setCreateTime(new Date());
+                    eruptUser.setAccount(DEFAULT_ACCOUNT);
+                    eruptUser.setPassword(MD5Utils.digest(DEFAULT_ACCOUNT));
+                    eruptUser.setName(DEFAULT_ACCOUNT);
+                    eruptDao.persistIfNotExist(EruptUser.class, eruptUser, "account", eruptUser.getAccount());
+                }
                 //菜单
                 String code = "code";
                 String manager = "$manager";
-                Integer open = Integer.valueOf(EruptMenu.OPEN);
+                Integer open = MenuStatus.OPEN.getValue();
                 EruptMenu eruptMenu = eruptDao.persistIfNotExist(EruptMenu.class, new EruptMenu(manager, "系统管理", null, null, 1, 0, "fa fa-cogs", null)
                         , code, manager);
                 eruptDao.persistIfNotExist(EruptMenu.class, new EruptMenu(
@@ -72,7 +74,7 @@ public class UpmsDataLoadService implements CommandLineRunner {
                             EruptDict.class.getSimpleName(), "字典维护", MenuTypeEnum.TABLE.getCode(), EruptDict.class.getSimpleName(), open, 50, null, eruptMenu
                     ), code, EruptDict.class.getSimpleName());
                     eruptDao.persistIfNotExist(EruptMenu.class, new EruptMenu(
-                            EruptDictItem.class.getSimpleName(), "字典项", MenuTypeEnum.TABLE.getCode(), EruptDictItem.class.getSimpleName(), Integer.valueOf(EruptMenu.HIDE), 10, null, eruptMenuDict
+                            EruptDictItem.class.getSimpleName(), "字典项", MenuTypeEnum.TABLE.getCode(), EruptDictItem.class.getSimpleName(), MenuStatus.HIDE.getValue(), 10, null, eruptMenuDict
                     ), code, EruptDictItem.class.getSimpleName());
                 }
                 eruptDao.persistIfNotExist(EruptMenu.class, new EruptMenu(

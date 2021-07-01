@@ -3,33 +3,30 @@ package xyz.erupt.core.util;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import lombok.SneakyThrows;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
+import xyz.erupt.annotation.config.AutoFill;
 import xyz.erupt.annotation.config.EruptProperty;
 import xyz.erupt.annotation.config.Match;
 import xyz.erupt.annotation.config.ToMap;
 import xyz.erupt.annotation.constant.AnnotationConst;
-import xyz.erupt.annotation.expr.Expr;
-import xyz.erupt.annotation.expr.ExprBool;
 import xyz.erupt.annotation.fun.FilterHandler;
 import xyz.erupt.annotation.sub_erupt.Filter;
 import xyz.erupt.annotation.sub_field.EditType;
 import xyz.erupt.annotation.sub_field.EditTypeMapping;
 import xyz.erupt.annotation.sub_field.EditTypeSearch;
-import xyz.erupt.core.annotation.EruptDataProcessor;
-import xyz.erupt.core.constant.EruptConst;
-import xyz.erupt.core.service.IEruptDataService;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 import java.beans.Transient;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.util.Arrays;
+import java.util.Map;
 
 /**
- * @author liyuepeng
- * @date 2019-02-28.
+ * @author YuePeng
+ * date 2019-02-28.
  */
 public class AnnotationUtil {
 
@@ -39,41 +36,21 @@ public class AnnotationUtil {
 
     private static final String EMPTY_ARRAY = "[]";
 
-//    @Deprecated
-//    public static String annotationToJsonByReplace(String annotationStr) {
-//        String convertStr = annotationStr
-//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_field\\.sub_edit\\.sub_attachment\\.\\w+", "")
-//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_field\\.sub_edit\\.\\w+", "")
-//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_field\\.sub_view\\.\\w+", "")
-//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_field\\.\\w+", "")
-//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_erupt\\.\\w+", "")
-//                .replaceAll("@xyz\\.erupt\\.annotation\\.\\w+", "")
-//                //屏蔽类信息
-//                .replaceAll("class [a-zA-Z0-9.]+", "")
-//                .replace("=,", "='',")
-//                .replace("=)", "='')")
-//                .replace("=", ":")
-//                .replace("(", "{")
-//                .replace(")", "}");
-//        return new JSONObject(convertStr).toString();
-//    }
+    private static final ExpressionParser parser = new SpelExpressionParser();
 
+    private static final String VALUE_VAR = "value";
 
-    //创建ScriptEngine成本过高，所以定义为全局变量。
-    private static final ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
+    private static final String ITEM_VAR = "item";
+
+    private static final String INDEX_VAR = "index";
 
     @SneakyThrows
     public static JsonObject annotationToJsonByReflect(Annotation annotation) {
         return annotationToJson(annotation);
     }
 
-    private static final String VALUE_VAR = "value";
-
-    private static final String ITEM_VAR = "item";
-
-    //耗时操作，勿频繁调用
     private static JsonObject annotationToJson(Annotation annotation)
-            throws InvocationTargetException, IllegalAccessException, NoSuchMethodException, InstantiationException, ScriptException {
+            throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
         JsonObject jsonObject = new JsonObject();
         for (Method method : annotation.annotationType().getDeclaredMethods()) {
             Transient tran = method.getAnnotation(Transient.class);
@@ -89,12 +66,23 @@ public class AnnotationUtil {
             Object result = method.invoke(annotation);
             Match match = method.getAnnotation(Match.class);
             if (null != match) {
-                synchronized (engine) { //保证ScriptEngine线程安全
-                    engine.put(VALUE_VAR, result);
-                    engine.put(ITEM_VAR, annotation);
-                    if (!(Boolean) engine.eval(String.format("!!(%s)", match.value()))) {
-                        continue;
-                    }
+                EvaluationContext evaluationContext = new StandardEvaluationContext();
+                evaluationContext.setVariable(VALUE_VAR, result);
+                evaluationContext.setVariable(ITEM_VAR, annotation);
+                Object r = parser.parseExpression(match.value()).getValue(evaluationContext);
+                if (null == r || !(Boolean) r) {
+                    continue;
+                }
+            }
+            AutoFill autoFill = method.getAnnotation(AutoFill.class);
+            if (null != autoFill) {
+                EvaluationContext evaluationContext = new StandardEvaluationContext();
+                if (AnnotationConst.EMPTY_STR.equals(result)) {
+                    evaluationContext.setVariable(ITEM_VAR, annotation);
+                    evaluationContext.setVariable(VALUE_VAR, result);
+//                    INDEX_VAR
+                    result = parser.parseExpression(autoFill.value()).getValue(evaluationContext);
+                    AnnotationUtil.getAnnotationMap(annotation).put(methodName, result);
                 }
             }
             if (returnType.endsWith(EMPTY_ARRAY)) {
@@ -165,6 +153,36 @@ public class AnnotationUtil {
         return jsonObject;
     }
 
+//    @Deprecated
+//    public static String annotationToJsonByReplace(String annotationStr) {
+//        String convertStr = annotationStr
+//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_field\\.sub_edit\\.sub_attachment\\.\\w+", "")
+//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_field\\.sub_edit\\.\\w+", "")
+//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_field\\.sub_view\\.\\w+", "")
+//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_field\\.\\w+", "")
+//                .replaceAll("@xyz\\.erupt\\.annotation\\.sub_erupt\\.\\w+", "")
+//                .replaceAll("@xyz\\.erupt\\.annotation\\.\\w+", "")
+//                //屏蔽类信息
+//                .replaceAll("class [a-zA-Z0-9.]+", "")
+//                .replace("=,", "='',")
+//                .replace("=)", "='')")
+//                .replace("=", ":")
+//                .replace("(", "{")
+//                .replace(")", "}");
+//        return new JSONObject(convertStr).toString();
+//    }
+
+    @SneakyThrows
+    public static Map<String, Object> getAnnotationMap(Annotation annotation) {
+        InvocationHandler invocationHandler = Proxy.getInvocationHandler(annotation);
+        Field field = invocationHandler.getClass().getDeclaredField("memberValues");
+        field.setAccessible(true);
+//        Unsafe unsafe = Unsafe.getUnsafe();
+//        long offset = unsafe.objectFieldOffset(field);
+//        Object o = unsafe.getObject(annotation,offset);
+        return (Map) field.get(invocationHandler);
+    }
+
     public static String switchFilterConditionToStr(Filter filter) {
         String condition = filter.value();
         if (!filter.conditionHandler().isInterface()) {
@@ -172,22 +190,6 @@ public class AnnotationUtil {
             condition = ch.filter(condition, filter.params());
         }
         return condition;
-    }
-
-    public static String getExpr(Expr expr) {
-        String value = expr.value();
-        if (!expr.exprHandler().isInterface()) {
-            value = EruptSpringUtil.getBean(expr.exprHandler()).handler(value, expr.params());
-        }
-        return value;
-    }
-
-    public static boolean getExprBool(ExprBool expr) {
-        boolean value = expr.value();
-        if (!expr.exprHandler().isInterface()) {
-            value = EruptSpringUtil.getBean(expr.exprHandler()).boolHandler(value, expr.params());
-        }
-        return value;
     }
 
     public static EditTypeMapping getEditTypeMapping(EditType editType) {
@@ -207,15 +209,5 @@ public class AnnotationUtil {
             return null;
         }
     }
-
-    public static IEruptDataService getEruptDataProcessor(Class<?> clazz) {
-        EruptDataProcessor eruptDataProcessor = clazz.getAnnotation(EruptDataProcessor.class);
-        if (null == eruptDataProcessor) {
-            return EruptSpringUtil.getBean(DataProcessorManager.getDataProcessor(EruptConst.DEFAULT_DATA_PROCESSOR));
-        } else {
-            return EruptSpringUtil.getBean(DataProcessorManager.getDataProcessor(eruptDataProcessor.value()));
-        }
-    }
-
 
 }

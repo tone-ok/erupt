@@ -5,8 +5,8 @@ import xyz.erupt.annotation.sub_field.View;
 import xyz.erupt.core.view.EruptFieldModel;
 
 /**
- * @author liyuepeng
- * @date 11/1/18.
+ * @author YuePeng
+ * date 11/1/18.
  */
 public class EruptFieldAnnotationException extends RuntimeException {
 
@@ -22,13 +22,9 @@ public class EruptFieldAnnotationException extends RuntimeException {
                 if (eruptFieldModel.getEruptField().views().length > 0) {
                     for (View view : eruptFieldModel.getEruptField().views()) {
                         if ("".equals(view.column())) {
-                            throw ExceptionUtil.styleEruptFieldException(eruptFieldModel, "@View注解" + view.title() + "必须指定column值");
+                            throw ExceptionAnsi.styleEruptFieldException(eruptFieldModel, "@View注解" + view.title() + "必须指定column值");
                         }
                     }
-                }
-                if (eruptFieldModel.getFieldName().contains("_")) {
-                    throw ExceptionUtil.styleEruptFieldException(eruptFieldModel, eruptFieldModel.getFieldName()
-                            + " 命名不规范，字段命名方式必须为驼峰");
                 }
                 break;
         }

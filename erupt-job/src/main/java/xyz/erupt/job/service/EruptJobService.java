@@ -12,6 +12,7 @@ import xyz.erupt.job.model.EruptJob;
 import xyz.erupt.job.model.EruptJobLog;
 import xyz.erupt.jpa.dao.EruptDao;
 
+import javax.annotation.Resource;
 import javax.transaction.Transactional;
 import java.text.ParseException;
 import java.util.HashMap;
@@ -19,8 +20,8 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * @author liyuepeng
- * @date 2019-12-26
+ * @author YuePeng
+ * date 2019-12-26
  */
 @Service
 public class EruptJobService {
@@ -34,10 +35,10 @@ public class EruptJobService {
      */
     private static final int DEFAULT_THREAD_COUNT = 1;
 
-    @Autowired
+    @Resource
     private EruptDao eruptDao;
 
-    @Autowired
+    @Autowired(required = false)
     private JavaMailSenderImpl javaMailSender;
 
     public static final String MAIL_SENDER_KEY = "mailSensor";

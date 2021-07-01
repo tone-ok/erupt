@@ -7,8 +7,8 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * @author liyuepeng
- * @date 2018-10-09.
+ * @author YuePeng
+ * date 2018-10-09.
  */
 public interface DataProxy<@Comment("Erupt类对象") MODEL> {
 
@@ -37,7 +37,7 @@ public interface DataProxy<@Comment("Erupt类对象") MODEL> {
     }
 
     @Comment("查询前，返回值为：自定义查询条件")
-    default String beforeFetch() {
+    default String beforeFetch(Class<?> eruptClass) {
         return null;
     }
 
@@ -59,6 +59,7 @@ public interface DataProxy<@Comment("Erupt类对象") MODEL> {
     }
 
     @Comment("excel导入")
+    @Deprecated
     default void excelImport(MODEL model) {
     }
 

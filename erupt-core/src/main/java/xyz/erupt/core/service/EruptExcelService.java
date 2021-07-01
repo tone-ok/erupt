@@ -14,7 +14,9 @@ import xyz.erupt.annotation.sub_field.Edit;
 import xyz.erupt.annotation.sub_field.EditType;
 import xyz.erupt.annotation.sub_field.View;
 import xyz.erupt.annotation.sub_field.sub_edit.BoolType;
+import xyz.erupt.core.invoke.DataProcessorManager;
 import xyz.erupt.core.query.Column;
+import xyz.erupt.core.query.EruptQuery;
 import xyz.erupt.core.util.DateUtil;
 import xyz.erupt.core.util.*;
 import xyz.erupt.core.view.EruptFieldModel;
@@ -27,8 +29,8 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * @author liyuepeng
- * @date 12/4/18.
+ * @author YuePeng
+ * date 12/4/18.
  */
 @Service
 public class EruptExcelService {
@@ -39,16 +41,14 @@ public class EruptExcelService {
 
     private static final String SIMPLE_CELL_ERR = "请选择或输入有效的选项，或下载最新模版重试！";
 
-
     /**
-     * excel导出
-     * 展示的格式和view表格一致
+     * excel导出，展示的格式和view表格一致
      *
-     * @param eruptModel
-     * @param page
      * @return Workbook
      */
     public Workbook exportExcel(EruptModel eruptModel, Page page) {
+//        XSSFWorkbook
+//        SXSSFWorkbook
         Workbook wb = new HSSFWorkbook();
         Sheet sheet = wb.createSheet(eruptModel.getErupt().name());
         sheet.setZoom(160);
@@ -71,6 +71,9 @@ public class EruptExcelService {
                     Cell cell = row.createCell(colNum);
                     cell.setCellStyle(headStyle);
                     cell.setCellValue(view.title());
+//                    if (StringUtils.isNotBlank(view.width())) {
+//                        sheet.setColumnWidth(colNum, view.width());
+//                    }
                     colNum++;
                 }
             }
@@ -132,11 +135,11 @@ public class EruptExcelService {
                     cellIndexJoinEruptMap.put(i, boolMap);
                     break;
                 case REFERENCE_TREE:
-                    IEruptDataService iEruptDataService = AnnotationUtil.getEruptDataProcessor(eruptModel.getClazz());
+                    IEruptDataService iEruptDataService = DataProcessorManager.getEruptDataProcessor(eruptModel.getClazz());
                     List<Column> columns = new ArrayList<>();
                     columns.add(new Column(edit.referenceTreeType().id(), edit.referenceTreeType().id()));
                     columns.add(new Column(edit.referenceTreeType().label(), edit.referenceTreeType().label()));
-                    Collection<Map<String, Object>> list = iEruptDataService.queryColumn(eruptModel, columns, null);
+                    Collection<Map<String, Object>> list = iEruptDataService.queryColumn(EruptCoreService.getErupt(eruptFieldModel.getFieldReturnName()), columns, EruptQuery.builder().build());
                     Map<String, Object> refTreeMap = new HashMap<>(list.size());
                     for (Map<String, Object> m : list) {
                         Object label = m.get(edit.referenceTreeType().label());
@@ -148,11 +151,11 @@ public class EruptExcelService {
                     cellIndexJoinEruptMap.put(i, refTreeMap);
                     break;
                 case REFERENCE_TABLE:
-                    IEruptDataService eruptDataProcessor = AnnotationUtil.getEruptDataProcessor(eruptModel.getClazz());
+                    IEruptDataService eruptDataProcessor = DataProcessorManager.getEruptDataProcessor(eruptModel.getClazz());
                     List<Column> columnList = new ArrayList<>();
                     columnList.add(new Column(edit.referenceTableType().id(), edit.referenceTableType().id()));
                     columnList.add(new Column(edit.referenceTableType().label(), edit.referenceTableType().label()));
-                    Collection<Map<String, Object>> list2 = eruptDataProcessor.queryColumn(eruptModel, columnList, null);
+                    Collection<Map<String, Object>> list2 = eruptDataProcessor.queryColumn(EruptCoreService.getErupt(eruptFieldModel.getFieldReturnName()), columnList, EruptQuery.builder().build());
                     Map<String, Object> refTreeMap2 = new HashMap<>(list2.size());
                     for (Map<String, Object> m : list2) {
                         Object label = m.get(edit.referenceTableType().label());
@@ -192,7 +195,7 @@ public class EruptExcelService {
                                             cellIndexJoinEruptMap.get(cellNum).get(cell.getStringCellValue()).toString());
                                 }
                             } catch (Exception e) {
-                                throw new Exception(edit.title() + " -> " + cell.getStringCellValue() + "数据不存在");
+                                throw new Exception(edit.title() + " -> " + this.getStringCellValue(cell) + "数据不存在");
                             }
                             jsonObject.add(eruptFieldModel.getFieldName(), jo);
                             break;
@@ -201,7 +204,7 @@ public class EruptExcelService {
                                 jsonObject.addProperty(eruptFieldModel.getFieldName(), cellIndexJoinEruptMap.get(cellNum)
                                         .get(cell.getStringCellValue()).toString());
                             } catch (Exception e) {
-                                throw new Exception(edit.title() + " -> " + cell.getStringCellValue() + "数据不存在");
+                                throw new Exception(edit.title() + " -> " + this.getStringCellValue(cell) + "数据不存在");
                             }
                             break;
                         case BOOLEAN:
@@ -211,7 +214,7 @@ public class EruptExcelService {
                         default:
                             String rn = eruptFieldModel.getFieldReturnName();
                             if (String.class.getSimpleName().equals(rn)) {
-                                jsonObject.addProperty(eruptFieldModel.getFieldName(), getCellValue(cell).toString());
+                                jsonObject.addProperty(eruptFieldModel.getFieldName(), this.getStringCellValue(cell));
                             } else if (JavaType.NUMBER.equals(rn)) {
                                 jsonObject.addProperty(eruptFieldModel.getFieldName(), cell.getNumericCellValue());
                             } else if (Date.class.getSimpleName().equals(rn)) {
@@ -226,30 +229,25 @@ public class EruptExcelService {
         return listObject;
     }
 
-    public Object getCellValue(Cell cell) {
-        switch (cell.getCellTypeEnum()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                return cell.getNumericCellValue();
-            case BLANK:
-                return null;
-        }
-        return null;
+    public String getStringCellValue(Cell cell) {
+        cell.setCellType(CellType.STRING);
+        return cell.getStringCellValue() + "";
     }
+
 
     //模板的格式和edit输入框一致
     public void createExcelTemplate(EruptModel eruptModel, HttpServletRequest request, HttpServletResponse response) {
         Workbook wb = new HSSFWorkbook();
         //基本信息
         Sheet sheet = wb.createSheet(eruptModel.getErupt().name());
+        sheet.setZoom(160);
         //冻结首行
         sheet.createFreezePane(0, 1, 1, 1);
         Row headRow = sheet.createRow(0);
         int cellNum = 0;
         for (EruptFieldModel fieldModel : eruptModel.getEruptFieldModels()) {
             Edit edit = fieldModel.getEruptField().edit();
-            if (edit.show() && !edit.readOnly() && StringUtils.isNotBlank(edit.title())
+            if (edit.show() && !edit.readonly().add() && StringUtils.isNotBlank(edit.title())
                     && AnnotationUtil.getEditTypeMapping(edit.type()).excelOperator()) {
                 Cell cell = headRow.createCell(cellNum);
                 //256表格一个字节的宽度
@@ -280,8 +278,10 @@ public class EruptExcelService {
                                         Integer.toString(edit.sliderType().min()), Integer.toString(edit.sliderType().max()))));
                         break;
                     case DATE:
-                        sheet.addValidationData(generateValidation(cellNum, "请选择或输入有效时间！", dvHelper.createDateConstraint(DVConstraint.OperatorType.BETWEEN,
-                                "1900-01-01", "2999-12-31", "yyyy-MM-dd")));
+                        if (fieldModel.getFieldReturnName().equals(Date.class.getSimpleName())) {
+                            sheet.addValidationData(generateValidation(cellNum, "请选择或输入有效时间！", dvHelper.createDateConstraint(DVConstraint.OperatorType.BETWEEN,
+                                    "1900-01-01", "2999-12-31", "yyyy-MM-dd")));
+                        }
                         break;
                     default:
                         break;

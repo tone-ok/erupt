@@ -1,5 +1,6 @@
 package xyz.erupt.job.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.quartz.Job;
@@ -13,11 +14,13 @@ import xyz.erupt.job.model.EruptJob;
 import xyz.erupt.job.model.EruptJobLog;
 
 import java.util.Date;
+import java.util.Objects;
 
 /**
- * @author liyuepeng
- * @date 2019-12-26.
+ * @author YuePeng
+ * date 2019-12-26.
  */
+@Slf4j
 public class EruptJobAction implements Job {
 
     @Override
@@ -45,20 +48,21 @@ public class EruptJobAction implements Job {
                 eruptJobLog.setStatus(false);
                 String exceptionTraceStr = ExceptionUtils.getStackTrace(e);
                 eruptJobLog.setErrorInfo(exceptionTraceStr);
-                {
-                    //失败通知
-                    String notifyEmails = eruptJob.getNotifyEmails();
-                    if (StringUtils.isNotBlank(notifyEmails)) {
+                if (null != jobHandler) {
+                    jobHandler.error(e, eruptJob.getHandlerParam());
+                }
+                //失败通知
+                if (StringUtils.isNotBlank(eruptJob.getNotifyEmails())) {
+                    if (null == javaMailSender) {
+                        log.warn("Sending mailbox not configured");
+                    }else{
                         SimpleMailMessage message = new SimpleMailMessage();
                         message.setSubject(eruptJob.getName() + " job error ！！！");
                         message.setText(exceptionTraceStr);
-                        message.setTo(notifyEmails.split("\\|"));
-                        message.setFrom(javaMailSender.getUsername());
+                        message.setTo(eruptJob.getNotifyEmails().split("\\|"));
+                        message.setFrom(Objects.requireNonNull(javaMailSender.getUsername()));
                         javaMailSender.send(message);
                     }
-                }
-                if (null != jobHandler) {
-                    jobHandler.error(e, eruptJob.getHandlerParam());
                 }
             }
             eruptJobLog.setHandlerParam(eruptJob.getHandlerParam());

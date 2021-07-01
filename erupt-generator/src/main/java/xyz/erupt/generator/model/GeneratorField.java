@@ -12,7 +12,6 @@ import xyz.erupt.annotation.fun.VLModel;
 import xyz.erupt.annotation.sub_field.Edit;
 import xyz.erupt.annotation.sub_field.EditType;
 import xyz.erupt.annotation.sub_field.View;
-import xyz.erupt.annotation.sub_field.sub_edit.BoolType;
 import xyz.erupt.annotation.sub_field.sub_edit.ChoiceType;
 import xyz.erupt.annotation.sub_field.sub_edit.ShowBy;
 import xyz.erupt.core.exception.EruptWebApiRuntimeException;
@@ -69,27 +68,27 @@ public class GeneratorField extends BaseModel implements DataProxy<GeneratorFiel
 
     @EruptField(
             views = @View(title = "查询项"),
-            edit = @Edit(title = "查询项")
+            edit = @Edit(title = "查询项", notNull = true)
     )
-    private Boolean query;
+    private Boolean query = true;
 
     @EruptField(
             views = @View(title = "字段排序"),
-            edit = @Edit(title = "字段排序", boolType = @BoolType(defaultValue = false))
+            edit = @Edit(title = "字段排序", notNull = true)
     )
-    private Boolean sortable;
+    private Boolean sortable = false;
 
     @EruptField(
             views = @View(title = "是否必填"),
-            edit = @Edit(title = "是否必填")
+            edit = @Edit(title = "是否必填", notNull = true)
     )
-    private Boolean notNull;
+    private Boolean notNull = true;
 
     @EruptField(
             views = @View(title = "是否显示"),
-            edit = @Edit(title = "是否显示")
+            edit = @Edit(title = "是否显示", notNull = true)
     )
-    private Boolean isShow;
+    private Boolean isShow = true;
 
 
     @Override

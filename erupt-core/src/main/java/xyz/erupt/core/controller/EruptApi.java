@@ -1,44 +1,29 @@
 package xyz.erupt.core.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.erupt.core.config.EruptAppProp;
+import xyz.erupt.core.config.GsonFactory;
 import xyz.erupt.core.constant.EruptRestPath;
-
-import javax.annotation.Resource;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+import xyz.erupt.core.util.EruptVersionUtil;
 
 /**
- * @author liyuepeng
- * @date 2020-04-22
+ * @author YuePeng
+ * date 2020-04-22
  */
 @RestController
 @RequestMapping(EruptRestPath.ERUPT_API)
+@RequiredArgsConstructor
 public class EruptApi {
 
-    @Resource
-    private EruptAppProp eruptAppProp;
-
-    private static Properties props;
-
-    static {
-        String path = "/erupt-core.properties";
-        Properties props = new Properties();
-        try (InputStream stream = EruptApi.class.getResourceAsStream(path)) {
-            props.load(stream);
-            EruptApi.props = props;
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    private final EruptAppProp eruptAppProp;
 
     //获取当前Erupt版本号
     @GetMapping("/version")
     public String version() {
-        return props.getProperty("version");
+        return EruptVersionUtil.getEruptVersion();
     }
 
     @GetMapping("/erupt-app")
@@ -46,5 +31,9 @@ public class EruptApi {
         return eruptAppProp;
     }
 
+    @GetMapping(value = "/erupt-app-js", produces = {"application/javascript"})
+    public String eruptAppJs() {
+        return "var eruptApp = " + GsonFactory.getGson().toJson(eruptAppProp);
+    }
 
 }

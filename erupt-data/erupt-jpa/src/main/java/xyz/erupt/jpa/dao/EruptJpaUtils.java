@@ -19,22 +19,24 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * @author liyuepeng
- * @date 2018-11-05.
+ * @author YuePeng
+ * date 2018-11-05.
  */
 public class EruptJpaUtils {
 
-    public static final String AND = " and ";
+    public static final String L_VAL_KEY = "l_";
 
-    public static final String LVAL_KEY = "l_";
-
-    public static final String RVAL_KEY = "r_";
+    public static final String R_VAL_KEY = "r_";
 
     public static final String PERCENT = "%";
 
+    public static final String AND = " and ";
+
     public static final String AS = " as ";
 
-    public static Set<String> getEruptColJapKeys(EruptModel eruptModel) {
+    public static final String LEFT_JOIN = " left outer join ";
+
+    public static Set<String> getEruptColJpaKeys(EruptModel eruptModel) {
         Set<String> cols = new HashSet<>();
         String eruptNameSymbol = eruptModel.getEruptName() + ".";
         cols.add(eruptNameSymbol + eruptModel.getErupt().primaryKeyCol() + AS + eruptModel.getErupt().primaryKeyCol());
@@ -71,7 +73,7 @@ public class EruptJpaUtils {
                     append(eruptModel.getEruptName());
             ReflectUtil.findClassAllFields(eruptModel.getClazz(), field -> {
                 if (null != field.getAnnotation(ManyToOne.class) || null != field.getAnnotation(OneToOne.class)) {
-                    hql.append(" left outer join ").append(eruptModel.getEruptName()).append(".")
+                    hql.append(LEFT_JOIN).append(eruptModel.getEruptName()).append(".")
                             .append(field.getName()).append(AS).append(field.getName());
                 }
             });
@@ -86,12 +88,11 @@ public class EruptJpaUtils {
         return hql.toString();
     }
 
-
     public static String generateEruptJoinHql(EruptModel eruptModel) {
         StringBuilder sb = new StringBuilder();
         ReflectUtil.findClassAllFields(eruptModel.getClazz(), field -> {
             if (null != field.getAnnotation(ManyToOne.class) || null != field.getAnnotation(OneToOne.class)) {
-                sb.append(" left outer join ")
+                sb.append(LEFT_JOIN)
                         .append(eruptModel.getEruptName()).append('.').append(field.getName()).append(AS).append(field.getName());
                 try {
                     Object obj = field.get(eruptModel.getClazz());
@@ -132,8 +133,8 @@ public class EruptJpaUtils {
                             break;
                         case RANGE:
                             hql.append(EruptJpaUtils.AND).append(_key).append(" between :")
-                                    .append(LVAL_KEY).append(condition.getKey()).append(" and :")
-                                    .append(RVAL_KEY).append(condition.getKey());
+                                    .append(L_VAL_KEY).append(condition.getKey()).append(" and :")
+                                    .append(R_VAL_KEY).append(condition.getKey());
                             break;
                         case IN:
                             hql.append(EruptJpaUtils.AND).append(_key).append(" in (:").append(condition.getKey()).append(")");
@@ -160,7 +161,6 @@ public class EruptJpaUtils {
         return hql.toString();
     }
 
-
     public static String geneEruptHqlOrderBy(EruptModel eruptModel, String orderBy) {
         if (StringUtils.isNotBlank(orderBy)) {
             return " order by " + EruptJpaUtils.completeHqlPath(eruptModel.getEruptName(), orderBy);
@@ -178,8 +178,6 @@ public class EruptJpaUtils {
         } else {
             return eruptName + "." + hqlPath;
         }
-
     }
-
 
 }

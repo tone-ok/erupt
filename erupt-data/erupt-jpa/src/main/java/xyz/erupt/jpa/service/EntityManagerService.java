@@ -7,8 +7,10 @@ import org.springframework.core.annotation.Order;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.stereotype.Service;
+import xyz.erupt.annotation.config.Comment;
 import xyz.erupt.core.annotation.EruptDataSource;
 import xyz.erupt.core.config.EruptProp;
+import xyz.erupt.core.config.EruptPropDb;
 import xyz.erupt.core.service.EruptApplication;
 
 import javax.annotation.Resource;
@@ -18,10 +20,11 @@ import javax.persistence.PersistenceContext;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
- * @author liyuepeng
- * @date 2020-01-13
+ * @author YuePeng
+ * date 2020-01-13
  */
 @Service
 @Order
@@ -40,7 +43,7 @@ public class EntityManagerService implements ApplicationRunner {
         if (null != eruptProp.getDbs()) {
             //多数据源处理
             entityManagerMap = new HashMap<>();
-            for (EruptProp.DB prop : eruptProp.getDbs()) {
+            for (EruptPropDb prop : eruptProp.getDbs()) {
                 LocalContainerEntityManagerFactoryBean factory = new LocalContainerEntityManagerFactoryBean();
                 {
                     JpaProperties jpa = prop.getJpa();
@@ -63,18 +66,24 @@ public class EntityManagerService implements ApplicationRunner {
     }
 
 
-    //如果使用了@EruptDataSource多数据源，调用此方法必须手动关闭, close()
-    public EntityManager getEntityManager(Class<?> eruptClass) {
+    public <R> R getEntityManager(Class<?> eruptClass, Function<EntityManager, R> function) {
         EruptDataSource eruptDataSource = eruptClass.getAnnotation(EruptDataSource.class);
         if (null == eruptDataSource) {
-            return entityManager;
+            return function.apply(entityManager);
         } else {
-            return entityManagerMap.get(eruptDataSource.value()).createEntityManager();
+            EntityManager em = entityManagerMap.get(eruptDataSource.value()).createEntityManager();
+            try {
+                return function.apply(em);
+            } finally {
+                if (em.isOpen()) {
+                    em.close();
+                }
+            }
         }
     }
 
 
-    public void getEntityManager(Class<?> eruptClass, Consumer<EntityManager> consumer) {
+    public void entityManagerTran(Class<?> eruptClass, Consumer<EntityManager> consumer) {
         EruptDataSource eruptDataSource = eruptClass.getAnnotation(EruptDataSource.class);
         if (null == eruptDataSource) {
             consumer.accept(entityManager);
@@ -85,6 +94,7 @@ public class EntityManagerService implements ApplicationRunner {
                 consumer.accept(em);
                 em.getTransaction().commit();
             } catch (Exception e) {
+                e.printStackTrace();
                 em.getTransaction().rollback();
             } finally {
                 if (em.isOpen()) {
@@ -94,5 +104,8 @@ public class EntityManagerService implements ApplicationRunner {
         }
     }
 
-
+    @Comment("必须手动执行 close() 方法")
+    public EntityManager findEntityManager(String name) {
+        return entityManagerMap.get(name).createEntityManager();
+    }
 }

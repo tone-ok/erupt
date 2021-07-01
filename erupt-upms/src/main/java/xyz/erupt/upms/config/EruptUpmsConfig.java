@@ -1,14 +1,16 @@
 package xyz.erupt.upms.config;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * @author liyuepeng
- * @date 2019-10-31.
+ * @author YuePeng
+ * date 2019-10-31.
  */
-@Data
+@Getter
+@Setter
 @Component
 @ConfigurationProperties(prefix = "erupt.upms", ignoreUnknownFields = false)
 public class EruptUpmsConfig {

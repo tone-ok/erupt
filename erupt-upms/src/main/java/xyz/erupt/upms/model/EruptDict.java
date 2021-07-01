@@ -17,8 +17,8 @@ import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 
 /**
- * @author liyuepeng
- * @date 2018-12-07.
+ * @author YuePeng
+ * date 2018-12-07.
  */
 
 @Entity
@@ -27,7 +27,6 @@ import javax.persistence.UniqueConstraint;
         name = "数据字典",
         power = @Power(export = true),
         drills = @Drill(
-                code = "item",
                 title = "字典项",
                 link = @Link(
                         linkErupt = EruptDictItem.class, joinColumn = "eruptDict.id"

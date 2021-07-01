@@ -6,8 +6,8 @@ import java.util.Arrays;
 import java.util.function.Consumer;
 
 /**
- * @author liyuepeng
- * @date 2018-11-01.
+ * @author YuePeng
+ * date 2018-11-01.
  */
 public class TypeUtil {
     private static final String[] SIMPLE_JPA_TYPE = {
@@ -23,7 +23,7 @@ public class TypeUtil {
     public static Object typeStrConvertObject(Object obj, Class<?> targetType) {
         String str = obj.toString();
         if (NumberUtils.isCreatable(str)) {
-            if (str.endsWith(".0")) { //处理gson序列化后数值后多了一个0
+            if (str.endsWith(".0")) {  //处理gson序列化数值多了一个0
                 str = str.substring(0, str.length() - 2);
             }
         }
@@ -73,11 +73,7 @@ public class TypeUtil {
         }
     }
 
-    /**
-     * 判断实体类字段返回值是否为基本类型（包括String与date）
-     *
-     * @return
-     */
+    // 判断实体类字段返回值是否为基本类型（包括String与date）
     public static boolean isFieldSimpleType(String typeName) {
         return Arrays.asList(SIMPLE_JPA_TYPE).contains(typeName.toLowerCase());
     }

@@ -1,8 +1,8 @@
 package xyz.erupt.core.constant;
 
 /**
- * @author liyuepeng
- * @date 10/15/18.
+ * @author YuePeng
+ * date 10/15/18.
  */
 public class EruptRestPath {
 
@@ -23,9 +23,10 @@ public class EruptRestPath {
     //excel
     public static final String ERUPT_EXCEL = ERUPT_API + "/excel";
 
-    //上传
+    //文件
     public static final String ERUPT_FILE = ERUPT_API + "/file";
 
     //附件虚拟路径
     public static final String ERUPT_ATTACHMENT = "/erupt-attachment";
+
 }

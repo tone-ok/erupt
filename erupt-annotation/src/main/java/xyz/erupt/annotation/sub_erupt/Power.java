@@ -6,8 +6,8 @@ import xyz.erupt.annotation.fun.PowerHandler;
 import java.beans.Transient;
 
 /**
- * @author liyuepeng
- * @date 2018-09-28.
+ * @author YuePeng
+ * date 2018-09-28.
  */
 public @interface Power {
 
@@ -21,10 +21,10 @@ public @interface Power {
 
     boolean viewDetails() default true;
 
-    @Comment("导入")
+    @Comment("导出")
     boolean export() default false;
 
-    @Comment("导出")
+    @Comment("导入")
     boolean importable() default false;
 
     @Transient

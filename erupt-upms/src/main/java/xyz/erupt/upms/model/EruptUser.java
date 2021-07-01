@@ -20,23 +20,24 @@ import xyz.erupt.core.exception.EruptApiErrorTip;
 import xyz.erupt.core.exception.EruptWebApiRuntimeException;
 import xyz.erupt.core.view.EruptApiModel;
 import xyz.erupt.upms.model.base.HyperModel;
+import xyz.erupt.upms.service.EruptUserService;
 import xyz.erupt.upms.util.MD5Utils;
 
+import javax.annotation.Resource;
 import javax.persistence.*;
 import java.util.Date;
 import java.util.Set;
 
 /**
- * @author liyuepeng
- * @date 2018-11-22.
+ * @author YuePeng
+ * date 2018-11-22.
  */
 @Entity
 @Table(name = "e_upms_user", uniqueConstraints = {
         @UniqueConstraint(columnNames = "account")
 })
 @Erupt(
-        name = "用户",
-        desc = "用户配置",
+        name = "用户", desc = "用户配置",
         dataProxy = EruptUser.class,
         linkTree = @LinkTree(field = "eruptOrg")
 )
@@ -67,13 +68,14 @@ public class EruptUser extends HyperModel implements DataProxy<EruptUser> {
                     title = "账户状态",
                     search = @Search,
                     type = EditType.BOOLEAN,
+                    notNull = true,
                     boolType = @BoolType(
                             trueText = "激活",
                             falseText = "锁定"
                     )
             )
     )
-    private Boolean status;
+    private Boolean status = true;
 
     @EruptField(
             views = @View(title = "手机号码"),
@@ -118,29 +120,33 @@ public class EruptUser extends HyperModel implements DataProxy<EruptUser> {
     )
     private String pwdDivide;
 
+    private String password;
+
+    @Transient
     @EruptField(
             edit = @Edit(title = "密码")
     )
-    private String password;
+    private String passwordA;
 
     @Transient
     @EruptField(
             edit = @Edit(title = "确认密码")
     )
-    private String password2;
+    private String passwordB;
 
     @EruptField(
             views = @View(title = "md5加密"),
             edit = @Edit(
                     title = "md5加密",
                     type = EditType.BOOLEAN,
+                    notNull = true,
                     boolType = @BoolType(
                             trueText = "加密",
                             falseText = "不加密"
                     )
             )
     )
-    private Boolean isMd5;
+    private Boolean isMd5 = true;
 
     @ManyToMany
     @JoinTable(
@@ -148,6 +154,7 @@ public class EruptUser extends HyperModel implements DataProxy<EruptUser> {
             joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"),
             inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))
     @EruptField(
+            views = @View(title = "所属角色"),
             edit = @Edit(
                     title = "所属角色",
                     type = EditType.CHECKBOX
@@ -181,6 +188,10 @@ public class EruptUser extends HyperModel implements DataProxy<EruptUser> {
     @PersistenceContext
     private EntityManager entityManager;
 
+    @Transient
+    @Resource
+    private EruptUserService eruptUserService;
+
     public EruptUser() {
     }
 
@@ -190,21 +201,16 @@ public class EruptUser extends HyperModel implements DataProxy<EruptUser> {
 
 
     @Override
-    public void editBehavior(EruptUser eruptUser) {
-        eruptUser.setPassword(null);
-    }
-
-    @Override
     public void beforeAdd(EruptUser eruptUser) {
-        if (StringUtils.isBlank(eruptUser.getPassword())) {
-            throw new EruptApiErrorTip(new EruptApiModel(EruptApiModel.Status.WARNING, "密码必填",
-                    EruptApiModel.PromptWay.MESSAGE));
+        if (StringUtils.isBlank(eruptUser.getPasswordA())) {
+            throw new EruptApiErrorTip(EruptApiModel.Status.WARNING, "密码必填", EruptApiModel.PromptWay.MESSAGE);
         }
-        if (eruptUser.getPassword().equals(eruptUser.getPassword2())) {
+        this.checkPostOrg(eruptUser);
+        if (eruptUser.getPasswordA().equals(eruptUser.getPasswordB())) {
             eruptUser.setIsAdmin(false);
             eruptUser.setCreateTime(new Date());
             if (eruptUser.getIsMd5()) {
-                eruptUser.setPassword(MD5Utils.digest(eruptUser.getPassword()));
+                eruptUser.setPassword(MD5Utils.digest(eruptUser.getPasswordA()));
             }
         } else {
             throw new EruptWebApiRuntimeException("两次密码输入不一致");
@@ -218,23 +224,23 @@ public class EruptUser extends HyperModel implements DataProxy<EruptUser> {
         if (!eruptUser.getIsMd5() && eu.getIsMd5()) {
             throw new EruptWebApiRuntimeException("MD5 不可逆");
         }
-        if (StringUtils.isNotBlank(eruptUser.getPassword())) {
-            if (!eruptUser.getPassword().equals(eruptUser.getPassword2())) {
+        this.checkPostOrg(eruptUser);
+        if (StringUtils.isNotBlank(eruptUser.getPasswordA())) {
+            if (!eruptUser.getPasswordA().equals(eruptUser.getPasswordB())) {
                 throw new EruptWebApiRuntimeException("两次密码输入不一致");
             }
             if (eruptUser.getIsMd5()) {
-                eruptUser.setPassword(MD5Utils.digest(eruptUser.getPassword()));
+                eruptUser.setPassword(MD5Utils.digest(eruptUser.getPasswordA()));
             } else {
-                eruptUser.setPassword(eruptUser.getPassword());
-            }
-        } else {
-            if (eruptUser.getIsMd5() && !eu.getIsMd5()) {
-                eruptUser.setPassword(MD5Utils.digest(eu.getPassword()));
-            } else {
-                eruptUser.setPassword(eu.getPassword());
+                eruptUser.setPassword(eruptUser.getPasswordA());
             }
         }
     }
 
+    private void checkPostOrg(EruptUser eruptUser) {
+        if (eruptUser.getEruptPost() != null && eruptUser.getEruptOrg() == null) {
+            throw new EruptWebApiRuntimeException("选择岗位时，所属组织必填");
+        }
+    }
 
 }

@@ -6,12 +6,12 @@ import xyz.erupt.annotation.fun.ChoiceFetchHandler;
 import java.beans.Transient;
 
 /**
- * @author liyuepeng
- * @date 2018-10-09.
+ * @author YuePeng
+ * date 2018-10-09.
  */
 public @interface ChoiceType {
 
-    @Comment("UI样式")
+    @Comment("ui style")
     Type type() default Type.SELECT;
 
     @Transient
@@ -25,6 +25,9 @@ public @interface ChoiceType {
     @Transient
     @Comment("动态获取选择项")
     Class<? extends ChoiceFetchHandler>[] fetchHandler() default {};
+
+    @Comment("开启后在编辑等操作时会重新获取下拉列表")
+    boolean anewFetch() default false;
 
     enum Type {
         @Comment("下拉选择")

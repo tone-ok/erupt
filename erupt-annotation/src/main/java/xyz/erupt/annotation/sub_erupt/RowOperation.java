@@ -1,5 +1,6 @@
 package xyz.erupt.annotation.sub_erupt;
 
+import xyz.erupt.annotation.config.AutoFill;
 import xyz.erupt.annotation.config.Comment;
 import xyz.erupt.annotation.expr.ExprBool;
 import xyz.erupt.annotation.fun.OperationHandler;
@@ -9,13 +10,15 @@ import java.beans.Transient;
 /**
  * 使用一列或者多列的数据执行特定代码
  *
- * @author liyuepeng
- * @date 2018-10-09.
+ * @author YuePeng
+ * date 2018-10-09.
  */
 public @interface RowOperation {
 
-    @Comment("唯一标识编码")
-    String code();
+    // T(org.apache.commons.lang3.RandomStringUtils).randomAlphanumeric(4)
+    @Deprecated
+    @AutoFill("T(Integer).toString(#item.hashCode())")
+    String code() default "";
 
     String title();
 

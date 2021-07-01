@@ -3,13 +3,13 @@ package xyz.erupt.job.handler;
 import xyz.erupt.annotation.config.Comment;
 
 /**
- * @author liyuepeng
- * @date 2019-12-26
+ * @author YuePeng
+ * date 2019-12-26
  */
 public interface EruptJobHandler {
 
     @Comment("任务处理类")
-    String exec(@Comment("任务编码") String code, @Comment("任务参数") String param) throws Exception;
+    String exec(@Comment("任务编码") String code, @Comment("任务参数") String param);
 
     @Comment("任务执行成功时调用")
     default void success(@Comment("执行结果") String result, @Comment("任务参数") String param) {

@@ -4,18 +4,24 @@ import org.springframework.stereotype.Component;
 import xyz.erupt.annotation.fun.ChoiceFetchHandler;
 import xyz.erupt.annotation.fun.VLModel;
 import xyz.erupt.jpa.dao.EruptDao;
+import xyz.erupt.upms.cache.CaffeineEruptCache;
+import xyz.erupt.upms.constant.FetchConst;
 import xyz.erupt.upms.model.EruptDictItem;
 
 import javax.annotation.Resource;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * @author liyuepeng
- * @date 2020/12/16 18:00
+ * @author YuePeng
+ * date 2020/12/16 18:00
  */
 @Component
 public class DictChoiceFetchHandler implements ChoiceFetchHandler {
+
+    private final String CACHE_SPACE = DictChoiceFetchHandler.class.getName() + ":";
+
+    private final CaffeineEruptCache<List<VLModel>> dictCache = new CaffeineEruptCache<>();
 
     @Resource
     private EruptDao eruptDao;
@@ -23,14 +29,12 @@ public class DictChoiceFetchHandler implements ChoiceFetchHandler {
     @Override
     public List<VLModel> fetch(String[] params) {
         if (null == params || params.length == 0) {
-            throw new RuntimeException("DictChoiceFetchHandler → params[0] must dict → code");
+            throw new RuntimeException(DictChoiceFetchHandler.class.getSimpleName() + " → params[0] must dict → code");
         }
-        List<VLModel> list = new ArrayList<>();
-        List<EruptDictItem> eruptDictItem = eruptDao.queryEntityList(EruptDictItem.class, "eruptDict.code = '" + params[0] + "'", null);
-        for (EruptDictItem item : eruptDictItem) {
-            list.add(new VLModel(item.getId().toString(), item.getName()));
-        }
-        return list;
+        dictCache.init(params.length == 2 ? Long.parseLong(params[1]) : FetchConst.DEFAULT_CACHE_TIME);
+        return dictCache.get(CACHE_SPACE + params[0], (key) ->
+                eruptDao.queryEntityList(EruptDictItem.class, "eruptDict.code = '" + params[0] + "'", null)
+                        .stream().map((item) -> new VLModel(item.getId(), item.getName())).collect(Collectors.toList()));
     }
 
 }

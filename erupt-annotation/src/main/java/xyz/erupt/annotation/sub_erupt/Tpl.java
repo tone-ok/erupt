@@ -6,8 +6,8 @@ import java.beans.Transient;
 import java.util.Map;
 
 /**
- * @author liyuepeng
- * @date 2019-10-16.
+ * @author YuePeng
+ * date 2019-10-16.
  */
 public @interface Tpl {
 
@@ -35,12 +35,17 @@ public @interface Tpl {
         @Comment("Thymeleaf")
         Thymeleaf,
         @Comment("Velocity")
-        Velocity
+        Velocity,
+        @Comment("Beetl")
+        Beetl
     }
 
     interface TplHandler {
 
-        Map<String, Object> bindTplData(String[] params);
+        /**
+         * 1.7.0 And above use the Function
+         */
+        void bindTplData(Map<String, Object> binding, String[] params);
 
     }
 

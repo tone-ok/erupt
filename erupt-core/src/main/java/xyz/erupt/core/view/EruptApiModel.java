@@ -1,12 +1,14 @@
 package xyz.erupt.core.view;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
- * @author liyuepeng
- * @date 2018-10-09.
+ * @author YuePeng
+ * date 2018-10-09.
  */
-@Data
+@Getter
+@Setter
 public class EruptApiModel {
 
     private Status status;
@@ -72,7 +74,6 @@ public class EruptApiModel {
     public enum PromptWay {
         DIALOG, MESSAGE, NOTIFY
     }
-
 
 }
 

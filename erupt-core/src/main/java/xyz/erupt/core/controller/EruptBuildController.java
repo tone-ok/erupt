@@ -1,13 +1,16 @@
 package xyz.erupt.core.controller;
 
 
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import xyz.erupt.annotation.sub_erupt.RowOperation;
 import xyz.erupt.core.annotation.EruptRouter;
 import xyz.erupt.core.constant.EruptRestPath;
 import xyz.erupt.core.exception.EruptNoLegalPowerException;
+import xyz.erupt.core.invoke.PowerInvoke;
 import xyz.erupt.core.service.EruptCoreService;
-import xyz.erupt.core.util.EruptUtil;
 import xyz.erupt.core.view.EruptBuildModel;
 import xyz.erupt.core.view.EruptFieldModel;
 import xyz.erupt.core.view.EruptModel;
@@ -17,20 +20,19 @@ import java.util.LinkedHashMap;
 /**
  * Erupt 页面结构构建信息
  *
- * @author liyuepeng
- * @date 2018-09-28.
+ * @author YuePeng
+ * date 2018-09-28.
  */
 @RestController
 @RequestMapping(EruptRestPath.ERUPT_BUILD)
 public class EruptBuildController {
 
     @GetMapping("/{erupt}")
-    @ResponseBody
     @EruptRouter(authIndex = 1, verifyType = EruptRouter.VerifyType.ERUPT)
     public EruptBuildModel getEruptBuild(@PathVariable("erupt") String eruptName) {
         EruptModel eruptView = EruptCoreService.getEruptView(eruptName);
         EruptBuildModel eruptBuildModel = new EruptBuildModel();
-        eruptBuildModel.setPower(EruptUtil.getPowerObject(eruptView));
+        eruptBuildModel.setPower(PowerInvoke.getPowerObject(eruptView));
         eruptBuildModel.setEruptModel(eruptView);
         for (EruptFieldModel fieldModel : eruptView.getEruptFieldModels()) {
             switch (fieldModel.getEruptField().edit().type()) {
@@ -71,7 +73,6 @@ public class EruptBuildController {
     }
 
     @GetMapping("/{erupt}/{field}")
-    @ResponseBody
     @EruptRouter(authIndex = 1, verifyType = EruptRouter.VerifyType.ERUPT)
     public EruptBuildModel getEruptBuild(@PathVariable("erupt") String eruptName, @PathVariable("field") String field) {
         EruptModel eruptModel = EruptCoreService.getEruptView(eruptName);
